@@ -56,7 +56,7 @@ def logistic_regression(file_path, r=0.5, w0=0, w1=0, w2=0):
         w0 = cal_new_w0(w0, r, yi, yi_pred)
         w1 = cal_new_w1(w1, r, x1i, yi, yi_pred)
         w2 = cal_new_w2(w2, r, x2i, yi, yi_pred)
-        Li = cal_BSE_single_loss(yi, yi_pred)
+        Li = cal_focal_loss_single(yi, yi_pred)
         print(f"{i}th iteration:")
         print(f"w0: {w0}, w1: {w1}, w2: {w2}, yi_pred: {sigmoid(yi_pred)} loss: {Li}")
         total_loss += Li
