@@ -51,7 +51,7 @@ class Neuron:
 
     def forward(self):
         weight = randint(0, 1)
-        return self.value * weight
+        return sigmoid(self.value * weight)
 
 
 class Network:
