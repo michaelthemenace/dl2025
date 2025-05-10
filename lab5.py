@@ -1,4 +1,5 @@
 import math
+import random
 
 
 def rand_float(a, b):
@@ -32,39 +33,72 @@ def cal_BSE_single_loss(yi, yi_pred, epsilon=1e-15):
     return -(yi * math.log(sig) + (1 - yi) * math.log(1 - sig))
 
 
+def is_1d_list(lst):
+    return all(not isinstance(i, list) for i in lst)
+
+
 class Neuron:
-    def __init__(self, value=None):
-        self.value = value
-        self.weight = rand_float(0, 1)
-        self.output = None
-        self.error = None
+    def __init__(self, prev_layer_ouput, next_layer_neurons_no=0):
+        self.__cal_value(prev_layer_ouput)
+        self.__generate_weight(next_layer_neurons_no)
+        self.__produce_output()
+        self.errors = []
+
+    def __cal_value(self, prev_layer_ouput):
+        if isinstance(prev_layer_ouput, list):
+            self.value = 0
+            for i in range(len(prev_layer_ouput)):
+                self.value += prev_layer_ouput[i]
+            self.value = sigmoid(self.value)
+        else:
+            self.value = prev_layer_ouput
+
+    def __generate_weight(self, next_layer_neurons_no):
+        if next_layer_neurons_no == 0:
+            return
+        self.weights = []
+        for _ in range(0, next_layer_neurons_no):
+            self.weights.append(random.uniform(0, 1))
+
+    def __produce_output(self):
+        self.output = []
+        for i in range(len(self.weights)):
+            self.output.append(self.value * self.weights[i])
 
     def forward(self):
-        self.output = sigmoid(self.value * self.weight + self.bias)
         return self.output
 
-    def compute_error(self, target=None, next_layer=None):
-        if target is not None:
-            self.error = (target - self.output) * self.output * (1 - self.output)
-        else:
-            self.error = (
-                self.output * (1 - self.output) * (self.weight * next_layer[0].error)
-            )
+    def compute_errors(self, target=None, next_layer_error=None):
+        for i in range(len(self.weights)):
+            if target is not None:
+                self.error = (target - self.output) * self.output * (1 - self.output)
+            else:
+                self.error = (
+                    self.output
+                    * (1 - self.output)
+                    * (self.weights[i] * next_layer_error[i])
+                )
+            self.errors.append(self.error)
 
     def update_weights(self, learning_rate):
         self.weight -= learning_rate * self.error * self.value
 
 
 class Layer:
-    def __init__(self, layer_i, neuron_no, input):
+    def __init__(self, neuron_no, input, next_layer_neurons_no=0):
         self.neurons = []
         self.output = []
-        self.layer_i = layer_i
         for i in range(0, neuron_no):
             if i == 0:
-                neuron = Neuron(1)
+                neuron = Neuron(1, next_layer_neurons_no)
             else:
-                neuron = Neuron(input[i - 1])
+                if is_1d_list(input):
+                    neuron = Neuron(input[i - 1], next_layer_neurons_no)
+                else:
+                    matching_input = []
+                    for j in range(len(input)):
+                        matching_input.append(input[j][i - 1])
+                    neuron = Neuron(matching_input, next_layer_neurons_no)
             self.neurons.append(neuron)
 
     def forward(self):
