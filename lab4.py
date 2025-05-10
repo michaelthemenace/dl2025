@@ -48,26 +48,30 @@ class Layer:
 class Neuron:
     def __init__(self, value=None):
         self.value = value
+        self.weight = rand_float(0, 1)
+        self.bias = rand_float(0, 1)
 
     def forward(self):
-        weight = rand_float(0, 1)
-        print(weight)
-        return sigmoid(self.value * weight)
+        return sigmoid(self.value * self.weight + self.bias)
 
 
 class Network:
     def __init__(self, layers_no, layers_sizes, input):
         self.layers = []
+        print(f"Input: {input}")
         next_input = input
         for i in range(0, layers_no):
             layer = Layer(i, layers_sizes[i], next_input)
             next_input = layer.forward()
-            print(f"Layer {i} output: {next_input}")
+            print(f"Layer {i + 1} output: {next_input}")
             self.layers.append(layer)
-        self.output = layer.output
+        if layer.output[0] > 0.65:
+            self.output = [1]
+        else:
+            self.output = [0]
 
-    def print_results(self):
-        print(f"Output: {self.output}")
+    def forward(self):
+        return self.output
 
 
 if __name__ == "__main__":
@@ -82,5 +86,5 @@ if __name__ == "__main__":
         else:
             layers_sizes.append(int(lines[i]))
 
-    network = Network(layers_no, layers_sizes, [0, 0])
-    network.print_results()
+    network = Network(layers_no, layers_sizes, [1, 1])
+    print(f"Network output: {network.forward()}")
