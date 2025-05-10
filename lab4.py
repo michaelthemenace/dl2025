@@ -1,13 +1,13 @@
 import math
 
 
-def randint(a, b):
-    return a + randbelow(b - a + 1)
+def rand_float(a, b):
+    return a + (rand_below(1000000) / 1000000) * (b - a)
 
 
-def randbelow(n):
+def rand_below(n):
     if n <= 0:
-        raise ValueError
+        raise ValueError("n must be greater than 0")
     k = n.bit_length()
     numbytes = (k + 7) // 8
     while True:
@@ -50,7 +50,8 @@ class Neuron:
         self.value = value
 
     def forward(self):
-        weight = randint(0, 1)
+        weight = rand_float(0, 1)
+        print(weight)
         return sigmoid(self.value * weight)
 
 
