@@ -1,5 +1,4 @@
 import math
-import random
 
 
 def rand_float(a, b):
@@ -27,6 +26,10 @@ def sigmoid(x):
     return 1 / (1 + math.exp(-x))
 
 
+def sigmoid_derivative(x):
+    return x * (1 - x)
+
+
 def cal_BSE_single_loss(yi, yi_pred, epsilon=1e-15):
     sig = sigmoid(yi_pred)
     sig = min(max(sig, epsilon), 1 - epsilon)
@@ -38,71 +41,70 @@ def is_1d_list(lst):
 
 
 class Neuron:
-    def __init__(self, prev_layer_ouput, next_layer_neurons_no=0):
-        self.__cal_value(prev_layer_ouput)
-        self.__generate_weight(next_layer_neurons_no)
-        self.__produce_output()
-        self.errors = []
+    def __init__(self, next_layer_neurons_no=0):
+        self.next_layer_neurons_no = next_layer_neurons_no
 
     def __cal_value(self, prev_layer_ouput):
         if isinstance(prev_layer_ouput, list):
-            self.value = 0
+            self.z = 0
             for i in range(len(prev_layer_ouput)):
-                self.value += prev_layer_ouput[i]
-            self.value = sigmoid(self.value)
+                self.z += prev_layer_ouput[i]
+            self.a = sigmoid(self.z)
         else:
-            self.value = prev_layer_ouput
+            self.a = prev_layer_ouput
 
     def __generate_weight(self, next_layer_neurons_no):
         if next_layer_neurons_no == 0:
             return
         self.weights = []
         for _ in range(0, next_layer_neurons_no):
-            self.weights.append(random.uniform(0, 1))
+            self.weights.append(rand_float(0, 1))
 
     def __produce_output(self):
         self.output = []
         for i in range(len(self.weights)):
-            self.output.append(self.value * self.weights[i])
+            self.output.append(self.a * self.weights[i])
 
-    def forward(self):
+    def forward(self, prev_layer_ouput):
+        self.__cal_value(prev_layer_ouput)
+        self.__generate_weight(self.next_layer_neurons_no)
+        self.__produce_output()
         return self.output
 
-    def compute_errors(self, target=None, next_layer_error=None):
+    def compute_error(self, target=None, next_layer_errors=None):
+        if self.weights is None:
+            self.error = (target - self.output) * self.output * (1 - self.output)
+            return
+        self.error = 0
         for i in range(len(self.weights)):
-            if target is not None:
-                self.error = (target - self.output) * self.output * (1 - self.output)
-            else:
-                self.error = (
-                    self.output
-                    * (1 - self.output)
-                    * (self.weights[i] * next_layer_error[i])
-                )
-            self.errors.append(self.error)
+            self.error += self.weights[i] * next_layer_errors[i]
+        self.error = sigmoid_derivative(self.a) * self.error
 
     def update_weights(self, learning_rate):
-        self.weight -= learning_rate * self.error * self.value
+        for i in range(len(self.weights)):
+            self.weights[i] += learning_rate * self.error * self.a
 
 
 class Layer:
-    def __init__(self, neuron_no, input, next_layer_neurons_no=0):
+    def __init__(self, neuron_no, next_layer_neurons_no=0):
         self.neurons = []
         self.output = []
-        for i in range(0, neuron_no):
-            if i == 0:
-                neuron = Neuron(1, next_layer_neurons_no)
-            else:
-                if is_1d_list(input):
-                    neuron = Neuron(input[i - 1], next_layer_neurons_no)
-                else:
-                    matching_input = []
-                    for j in range(len(input)):
-                        matching_input.append(input[j][i - 1])
-                    neuron = Neuron(matching_input, next_layer_neurons_no)
+        for _ in range(0, neuron_no):
+            neuron = Neuron(next_layer_neurons_no)
             self.neurons.append(neuron)
 
-    def forward(self):
-        self.output = [neuron.forward() for neuron in self.neurons]
+    def forward(self, input=None):
+        self.output = []
+        for i in range(0, len(self.neurons)):
+            if is_1d_list(input):
+                self.output.append(self.neurons[i].forward(1))
+            elif input is not None:
+                matching_input = []
+                for j in range(len(input)):
+                    matching_input.append(input[j][i - 1])
+                self.output.append(self.neurons[i].forward(matching_input))
+            else:
+                break
         return self.output
 
     def compute_errors(self, target=None, next_layer=None):
@@ -110,7 +112,8 @@ class Layer:
             if target is not None:
                 neuron.compute_error(target=target)
             else:
-                neuron.compute_error(next_layer=next_layer.neurons)
+                next_layer_errors = [neuron.error for neuron in next_layer.neurons]
+                neuron.compute_error(next_layer_errors=next_layer_errors)
 
     def update_weights(self, learning_rate):
         for neuron in self.neurons:
@@ -118,19 +121,22 @@ class Layer:
 
 
 class Network:
-    def __init__(self, layers_no, layers_sizes, input):
+    def __init__(self, layers_no, layers_sizes):
         self.layers = []
-        next_input = input
         for i in range(0, layers_no):
-            layer = Layer(i, layers_sizes[i], next_input)
-            next_input = layer.forward()
+            if i < len(layers_sizes) - 1:
+                layer = Layer(layers_sizes[i], layers_sizes[i + 1])
+            else:
+                layer = Layer(layers_sizes[i])
             self.layers.append(layer)
 
     def forward(self, input):
-        next_input = input
-        for layer in self.layers:
-            next_input = layer.forward()
-        return next_input
+        for i in range(len(self.layers)):
+            if i == 0:
+                self.layers[i].forward(input)
+            else:
+                self.layers[i].forward(self.layers[i - 1].output)
+        return self.layers[len(self.layers) - 1].forward()
 
     def back_propagate(self, target, learning_rate):
         self.layers[-1].compute_errors(target=target)
